@@ -1,0 +1,11 @@
+id = "microscript"
+name = "microScript"
+description = "microScript language support for Zed editor"
+version = "0.1.0"
+schema_version = 1
+authors = ["Nascir"]
+repository = "https://github.com/Nascir/zed-microscript"
+
+[grammars.microscript]
+repository = "https://github.com/Nascir/tree-sitter-microscript"
+commit = "d3b917287cb67ea00d5005fc395fc34b9de75683"
