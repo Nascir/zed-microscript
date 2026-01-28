@@ -22,8 +22,6 @@
 ("else") @outdent
 ("elsif") @outdent
 
-; Bracket-based indentation
-("[") @indent
-("]") @outdent
-("(") @indent
-(")") @outdent
+; Bracket-based indentation (node-based)
+(list_literal "]" @end) @indent
+(subscript_expression "]" @end) @indent

@@ -4,11 +4,17 @@ Adds [microScript](https://github.com/pmgl/microstudio/wiki) language support to
 
 ## Features
 
-- Syntax highlighting
+- microScript syntax highlightning 
+- Bracket matching (`()`, `[]`)
+- Auto-pairing for brackets (`()`, `[]`) and quotes (`""`, `''`)
+- Code block matching (`function...end`, `while...end`, `for...end`)
 - Code folding
-- Bracket matching and auto-pairing
 - Code outline and symbol navigation
-- JavaScript injection for `system.javascript()` calls
+- JavaScript syntax highlightning for `system.javascript()` calls
+
+## Known Limitations
+
+Block matching for `if...end` is not supported.
 
 ## Install
 

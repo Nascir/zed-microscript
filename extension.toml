@@ -1,7 +1,7 @@
 id = "microscript"
 name = "microScript"
 description = "microScript language support for Zed editor"
-version = "0.1.0"
+version = "0.2.0"
 schema_version = 1
 authors = ["Nascir"]
 repository = "https://github.com/Nascir/zed-microscript"

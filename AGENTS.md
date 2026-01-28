@@ -1,238 +1,154 @@
 # AGENTS.md
 
-**Important:** This file should be reviewed and updated whenever the project structure, configuration, or workflow changes. Keep it synchronized with the current state of the project.
+This file provides guidelines for agents working on the microScript Zed extension.
 
 ## Project Overview
 
-**Repository:** https://github.com/Nascir/microscript_zed_extension
-
-This is a Zed editor extension for the microScript programming language. It provides:
+This is a [Zed editor](https://zed.dev) extension that adds microScript language support. The extension uses a tree-sitter grammar and provides:
 - Syntax highlighting
-- Code folding
-- Bracket matching and auto-pairing
-- Auto-indentation
+- Code folding and bracket matching
+- Auto-pairing for brackets and quotes
 - Code outline and symbol navigation
 - JavaScript injection for `system.javascript()` calls
 
-**Type:** Pure configuration extension (no Rust code). All functionality is defined through TOML config and tree-sitter query files.
-
-## Related Projects / Dependencies
-
-| Project | URL | Description |
-|---------|-----|-------------|
-| Tree-sitter Grammar | https://github.com/Nascir/tree-sitter-microscript | microScript grammar for tree-sitter |
-
-**Current grammar commit SHA:** `d4716468247e4e66e2cc62a239e9343ddc227c6d`
-
-## Project Structure
-
-### Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `extension.toml` | Extension manifest, grammar source/rev |
-| `languages/microscript/config.toml` | File extensions, comments, brackets |
-| `languages/microscript/highlights.scm` | Syntax highlighting rules |
-| `languages/microscript/indents.scm` | Auto-indentation rules |
-| `languages/microscript/brackets.scm` | Bracket pair matching |
-| `languages/microscript/outline.scm` | Code structure for outline panel |
-| `languages/microscript/locals.scm` | Variable scope tracking |
-| `languages/microscript/injections.scm` | Language injection rules |
-| `languages/microscript/tags.scm` | Symbol navigation for Go to Definition, Find References |
-
-### Local Grammar Directory (`/grammars/`) - Not Tracked
-
-The `/grammars/` directory is **not tracked by git** and serves as an optional local development workspace. It is **not** part of the repository.
-
-**Purpose:** Developers can manually clone or copy the [tree-sitter-microscript](https://github.com/Nascir/tree-sitter-microscript) grammar here for local reference when working on query files.
-
-**Important:** The actual grammar used by the Zed extension is fetched automatically from GitHub based on the `commit` field in `extension.toml`. The local `/grammars/` directory has no effect on the extension's behavior.
-
 ## Build, Lint, and Test Commands
 
-### Development Workflow
+**Testing Changes (Manual):**
+
+Zed extensions have no traditional build process. The tree-sitter grammar is compiled separately at https://github.com/Nascir/tree-sitter-microscript.
 
 ```bash
-# No traditional build process - this is a config-only extension
-# Changes to .scm and .toml files are hot-reloaded by Zed
+# To test changes:
+# 1. Reload extension: Cmd+Shift+P > "Extensions: Reload"
+# 2. Open a .ms file to verify syntax highlighting and features
+# 3. Check Zed extension panel for error logs
+# 4. Use test.ms file for verification
 ```
 
-### Testing Changes
+**Grammar Updates:**
 
-1. **Install as dev extension in Zed:**
-   - Run command: "zed: install dev extension"
-   - Select this directory
-
-2. **Test changes:**
-   - Open any `.ms` file in Zed
-   - Edit query files (`.scm`) or config (`.toml`)
-   - Save and Zed automatically reloads for open `.ms` files
-
-3. **Grammar updates:**
-   - Change the `rev` field in `extension.toml` to a new commit SHA
-   - Get latest from: https://github.com/Nascir/tree-sitter-microscript
-
-### File Verification
-
-```bash
-# Validate TOML syntax
-brew install tomllint  # or use any TOML validator
-tomllint extension.toml
-tomllint languages/microscript/config.toml
-```
+When AST nodes change, update `extension.toml` with the new commit hash and download the `.wasm` file.
 
 ## Code Style Guidelines
 
-### Tree-sitter Query Files (.scm)
+### Tree-Sitter Query Files (.scm)
 
-**General Rules:**
-- Use semicolons for comments, placed on their own line
-- Use lowercase for all node types and keywords
-- Use snake_case for predicate names
-- Sort rules logically (keywords first, then literals, then patterns)
+**File Purposes:**
+- `highlights.scm` - Syntax highlighting
+- `tags.scm` - Symbol navigation
+- `outline.scm` - Code structure
+- `indents.scm` - Indentation rules
+- `brackets.scm` - Bracket/block matching
+- `injections.scm` - Language injection
+- `locals.scm` - Scoping information
 
-**Syntax Highlighting (`highlights.scm`):**
-- Map AST nodes to highlight groups using `@category.name` pattern
-- Common categories: `@keyword`, `@operator`, `@function`, `@type`, `@variable`, `@string`, `@number`, `@comment`, `@punctuation`
-- Group related keywords together using arrays
-- Use specific captures for method definitions (`@function.method`) vs regular functions (`@function`)
-- Lower priority for catch-all patterns (like `(identifier) @variable`)
+**Capture Naming Conventions:**
+```
+@keyword        - Language keywords
+@function       - Function calls
+@definition.*   - Symbol definitions (function, class, method)
+@variable       - Variables
+@property       - Object properties
+@parameter      - Function parameters
+@error          - Syntax errors
+@builtin        - Built-in functions
+```
 
-**Indentation (`indents.scm`):**
-- Use `@indent` for increasing indentation after opening brackets/keywords
-- Use `@outdent` for decreasing indentation before closing brackets/keywords
-- Consider `then`, `do`, `class`, `object`, `function` bodies
+**Formatting Rules:**
+```scheme
+; Good: grouped with comments, 4-space indent
+(function_definition
+    name: (identifier) @name) @definition.function
 
-**Brackets (`brackets.scm`):**
-- Use tree-sitter query syntax with `@open` and `@close` captures
-- Define opening and closing brackets on separate lines:
-  ```scm
-  ("(") @open
-  (")") @close
-  ```
-- Note: Auto-pairing is configured separately in `config.toml` using TOML format
+; Bad: compressed, no structure
+(function_definition name: (identifier) @name) @definition.function
+```
 
-**Outline (`outline.scm`):**
-- Use `@item` to mark nodes that appear in outline
-- Use `@name` for the display name (often the function/class identifier)
-- Use `@context` for nested structure display
+- Use 4-space indentation within captures
+- One capture per line for complex patterns
+- Blank lines between pattern groups
+- More specific patterns before general ones
+- Full-line semicolon comments for logical groups
 
-**Locals (`locals.scm`):**
-- Define scope boundaries with `@local.scope`
-- Mark variable definitions with `@local.definition`
-- Mark variable uses with `@local.reference`
+**Common Errors to Avoid:**
+- Impossible patterns: `(node "token" @end)` only works if token is a named child
+- Always verify AST structure in `grammars/microscript/src/node-types.json`
+- Test patterns individually before combining
 
-**Injections (`injections.scm`):**
-- Language injection for embedding other languages (e.g., JS in `system.javascript()`)
-- Use `(#set! injection.language "javascript")` predicate to specify the language
-- Mark content with `@injection.content` capture
+### TOML Configuration Files
 
-**Tags (`tags.scm`):**
-- Use `@definition.function`, `@definition.method`, `@definition.class`, `@definition.object` for definitions
-- Use `@reference.call` for function/method calls
-- Use `@reference.class` for `new ClassName()` instantiations
-- Only include patterns compatible with the microScript AST structure
-- Avoid tagging nodes without `name` fields (e.g., `constructor_definition`, `property_assignment`)
-
-### TOML Files
+**Files:**
+- `extension.toml` - Metadata and grammar reference
+- `languages/microscript/config.toml` - Language settings
 
 **Formatting:**
-- Use 4-space indentation for table contents
-- Use `key = "value"` format with spaces around `=`
-- Use kebab-case for table and key names
-- Arrays of tables: `[[array.name]]` on its own line
-
-**Example from `config.toml`:**
 ```toml
 name = "microScript"
 grammar = "microscript"
 path_suffixes = ["ms"]
 line_comments = ["// "]
-block_comment = ["/*", "*/"]
-brackets = [
-    { start = "[", end = "]", close = true, newline = true },
-    { start = "(", end = ")", close = true, newline = true },
-]
+
+[brackets]
+# 4-space indent for nested tables
 ```
 
-### Naming Conventions
+## Zed Extension Development Notes
 
-| Element | Convention | Example |
-|---------|------------|---------|
-| File extensions | `.scm`, `.toml` | `highlights.scm`, `config.toml` |
-| Highlight captures | `@category.name` | `@function`, `@variable.builtin` |
-| Query captures | Descriptive, snake_case | `@indent`, `@outdent`, `@item` |
-| Table/field names | kebab-case | `path_suffixes`, `line_comments` |
-| Comments | Semicolons, sentence case | `; Keywords - Control flow` |
+**Key Principles:**
+- Zed uses tree-sitter; no custom parser
+- All features defined via tree-sitter queries
+- No JavaScript/TypeScript in this extension
+- `.wasm` handles parsing; `.scm` files interpret AST
+- Changes require extension reload
 
-## microScript Language Reference
+**Common Issues:**
+- `Query error at X: Impossible pattern` - Token is not a named child in AST
+- `failed to load language` - Syntax error in query file
+- `missing required captures: indent` - No @indent capture found
 
-Key syntax to support:
-- Functions: `myFunc = function(args) ... end`
-- Classes: `MyClass = class ... end` with `extends`
-- Objects: `myObj = object ... end`
-- Async: `do`, `after X seconds do`, `every X seconds do`, `sleep`
-- Comments: `//` line, `/* */` block
+**Testing Checklist:**
+- [ ] Extension reloads without errors
+- [ ] Syntax highlighting works for all node types
+- [ ] Bracket matching highlights correct pairs
+- [ ] Indentation applies correctly (check with test.ms)
+- [ ] No errors in Zed extension panel
 
-## Common Tasks
+## File Structure
 
-### Adding New Syntax Highlighting
-
-1. Identify the AST node type from tree-sitter-microscript grammar
-2. Add capture rule in `highlights.scm`
-3. Test with sample code containing the syntax
-
-### Updating Grammar Version
-
-1. Visit https://github.com/Nascir/tree-sitter-microscript
-2. Find the desired commit SHA
-3. Update `rev` field in `extension.toml`
-4. Test highlighting on existing and new syntax
-
-### Modifying Indentation
-
-1. Identify the node that should trigger indent/outdent
-2. Add `@indent` or `@outdent` capture in `indents.scm`
-3. Consider edge cases (else/elsif after if, nested structures)
-
-### Adding Tags for Symbol Navigation
-
-1. Understand the AST structure by checking `/src/node-types.json` in the grammar
-2. Test patterns with tree-sitter CLI: `tree-sitter query queries/tags.scm`
-3. Avoid patterns for nodes without `name` fields (e.g., `constructor_definition`)
-4. Test navigation in Zed: `Cmd+Shift+O` for symbol search, `Cmd+Click` for go-to-definition
-
-## Error Handling
-
-- Invalid query syntax will cause tree-sitter parsing failures
-- Check Zed's developer tools (View > Developer > Toggle Tool Panel) for query errors
-- Missing captures are logged but don't break the extension
-- Test with real microScript code to verify coverage
-
-## Known Issues & Fixes
-
-### Function Call Highlighting (Fixed)
-
-**Problem:** All function calls (user-defined and methods) were incorrectly highlighted in blue, making them indistinguishable from built-in functions.
-
-**Root cause:** `highlights.scm` had catch-all rules for call expressions:
-```scm
-(call_expression (identifier) @function.call)
-(call_expression (member_expression ... (identifier) @function.method.call))
+```
+microscript_zed_extension/
+├── AGENTS.md              # This file
+├── extension.toml         # Metadata
+├── README.md              # User docs
+├── grammars/
+│   ├── microscript.wasm   # Grammar binary
+│   └── microscript/       # Grammar source
+├── languages/microscript/
+│   ├── config.toml        # Language config
+│   ├── highlights.scm     # Syntax highlighting
+│   ├── tags.scm           # Symbol navigation
+│   ├── outline.scm        # Code outline
+│   ├── indents.scm        # Indentation
+│   ├── brackets.scm       # Bracket matching
+│   ├── injections.scm     # Language injection
+│   └── locals.scm         # Scoping
+└── test.ms                # Test file
 ```
 
-**Solution:** Removed these rules from `highlights.scm`. Now only:
-- Built-in API objects: `screen`, `audio`, `system`, `keyboard`, `mouse`, etc. → blue
-- Built-in functions: `print`, `sqrt`, `sin`, `cos`, `random`, etc. → blue
+## Common Tasks Quick Reference
 
-User-defined functions and methods → no highlight (matches original microScript theme).
+| Task | File | Key Captures |
+|------|------|--------------|
+| Add highlighting | highlights.scm | @keyword, @function, @variable |
+| Add navigation | tags.scm | @definition.function, @reference |
+| Fix indentation | indents.scm | @indent, @outdent, @end |
+| Add block matching | brackets.scm | @open, @close |
+| Add injection | injections.scm | @injection |
 
-### Built-in Function Naming Collision (Fixed)
+## Important Notes
 
-**Problem:** Test file defined `abs = function(n) ...` which shadows the built-in `abs()` function.
-
-**Solution:** Renamed to `absolute = function(n) ...` in `test.ms`.
-
-**Built-in functions to avoid shadowing:**
-- Math: `abs`, `floor`, `round`, `ceil`, `sign`, `sqrt`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sind`, `cosd`, `tand`, `asind`, `acosd`, `atand`, `log`, `log10`, `exp`, `min`, `max`
-- Other: `random`, `print`
+1. **Always verify AST structure** before writing query patterns
+2. **Test changes incrementally** - reload after each modification
+3. **Check Zed logs** for errors when something doesn't work
+4. **Grammar changes** require updating `extension.toml` commit hash
+5. **No automated tests** exist - all verification is manual through Zed
